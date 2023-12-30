@@ -1,3 +1,5 @@
+[About Ayah Alrefai](https://github.com/AyahAlrifai/AyahAlrifai/blob/main/README.md)
+
 ## How to use it?
 
 - Download file `all.ps1`.
@@ -24,9 +26,3 @@
   ```
 - After finishing click on the `enter` to return to the command screen or insert `n` or `N` then click on the `enter` to exit
 - You can cancel the process at any time by clicking on Ctrl+C
-
----
-
-Welcome to my project! Check out the [main README](https://github.com/AyahAlrifai/AyahAlrifai/blob/main/README.md) for an overview.
-
-
