@@ -1,7 +1,5 @@
 [About Ayah Alrefai](https://github.com/AyahAlrifai/AyahAlrifai/blob/main/README.md)
 
-![Demo](https://github.com/AyahAlrifai/ayah-powershell/blob/main/Movie001.mp4)
-
 ## How to use it?
 
 - Download file `all.ps1`.
