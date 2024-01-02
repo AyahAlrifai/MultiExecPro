@@ -8,7 +8,8 @@
 - put this file in the folder where all microservices or folders that you want to make the same action on it.
 - Open Powershell then run this command.
   ```
-  ./multiExecPro.ps1
+    Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+    ./multiExecPro.ps1
   ```
 - We will show the command screen, you can insert multiple commands separated by `&&` and we will execute them in the same order for each microservice.
 - You can use `up/down` arrows to move between previous commands.
