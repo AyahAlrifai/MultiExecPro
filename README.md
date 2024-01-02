@@ -1,8 +1,10 @@
 [About Ayah Alrefai](https://github.com/AyahAlrifai/AyahAlrifai/blob/main/README.md)
 
+# Multi Execute Pro
+
 ## How to use it?
 
-- Download file `all.ps1`.
+- Download file `multiExecPro.ps1`.
 - put this file in the folder where all microservices or folders that you want to make the same action on it.
 - Open Powershell then run this command.
   ```
