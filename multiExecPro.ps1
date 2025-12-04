@@ -55,7 +55,7 @@ function Show-Menu
 
         try
         {
-            #Clear-Host
+            Clear-Host
             Write-ColorText $( $bannerText + $bannerInfo2 ) -Color $primaryColor
             for ($i = 0; $i -lt $Options.Length; $i++) {
                 if ($i -eq $selectedOption)
@@ -114,7 +114,7 @@ function Show-Menu
             {
                 38 {
                     # arrow up
-                    #Clear-Host
+                    Clear-Host
                     if ($selectedOption -ne 0)
                     {
                         $selectedOption = ($selectedOption - 1) % $Options.Length
@@ -126,7 +126,7 @@ function Show-Menu
                 }
                 40 {
                     # arrow down
-                    #Clear-Host
+                    Clear-Host
                     if ($selectedOption -ne $( $Options.Length - 1 ))
                     {
                         $selectedOption = ($selectedOption + 1) % $Options.Length
@@ -152,7 +152,7 @@ function Show-Menu
                 }
                 32 {
                     #space
-                    #Clear-Host
+                    Clear-Host
                     $isExist = -1;
                     $newList = @()
                     for ($j = 0; $j -lt $list.Length; $j++) {
@@ -215,7 +215,7 @@ function Start_Script
 {
     try
     {
-        #Clear-Host
+        Clear-Host
         Write-ColorText $( $bannerText + $bannerInfo1 ) -Color $primaryColor
         $userCommands = Read-Host -Prompt "Enter your commands separated with && "
         $selectedItems = Show-Menu -Options $projects
