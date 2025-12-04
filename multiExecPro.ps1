@@ -1,10 +1,16 @@
 $primaryColor = 77
-$secondaryColor = 209
+$secondaryColor = 215
+$thirdColor = 209
 $whiteBlackColor = 255
+
 $projects = Get-ChildItem -Directory -Exclude .* | ForEach-Object { $_.Name }
+$oldSelectedItems = @{ }
+$oldList = @();
+
 $upArrow = [char]::ConvertFromUtf32(0x2191)
 $downArrow = [char]::ConvertFromUtf32(0x2193)
 $enterIcon = [char]::ConvertFromUtf32(0x23CE)
+
 $bannerText = @"
  __    __     __  __     __         ______   __     ______     __  __     ______     ______
 /\ "-./  \   /\ \/\ \   /\ \       /\__  _\ /\ \   /\  ___\   /\_\_\_\   /\  ___\   /\  ___\
@@ -16,14 +22,14 @@ $bannerText = @"
 
 $bannerInfo2 = @"
 
-  Eng. Ayah Refai                   [ CTRL+A ] Select All                  [ CTRL+X ] Deselect All
-  [ $upArrow$downArrow ] Move between options       [ space ] Select/deselect option       [ $enterIcon ] Execution
+  Eng. Ayah Refai                   ( CTRL+A ) Select All                  ( CTRL+D ) Deselect All
+  ( $upArrow$downArrow ) Move Between Options       ( space ) Select/Deselect Option       ( $enterIcon ) Execution
 
 "@
 
 $bannerInfo1 = @"
 
-  Eng. Ayah Refai                           [ $upArrow$downArrow ] Get pervious commands
+  Eng. Ayah Refai                           ( $upArrow$downArrow ) Get Pervious Commands
 
 "@
 
@@ -38,35 +44,40 @@ function Show-Menu
     )
 
     $selectedOption = 0
+
     $selectedItems = @{ }
     $list = @();
+
     while ($true)
     {
+        Write-ColorText ("Old Selected Items: " + ($oldSelectedItems.Keys -join ', ')) -Color $primaryColor
+        Write-ColorText ("Old List: " + ($oldList -join ', ')) -Color $primaryColor
+
         try
         {
-            Clear-Host
+            #Clear-Host
             Write-ColorText $( $bannerText + $bannerInfo2 ) -Color $primaryColor
             for ($i = 0; $i -lt $Options.Length; $i++) {
                 if ($i -eq $selectedOption)
                 {
                     if ( $selectedItems.ContainsKey($i))
                     {
-                        Write-ColorTextBackground " [X] $( $Options[$i] )" -ForegroundColor 0 -BackgroundColor $secondaryColor
+                        Write-ColorTextBackground " (X) $( $Options[$i] )" -ForegroundColor 0 -BackgroundColor $secondaryColor
                     }
                     else
                     {
-                        Write-ColorTextBackground " [ ] $( $Options[$i] )" -ForegroundColor 0 -BackgroundColor $secondaryColor
+                        Write-ColorTextBackground " ( ) $( $Options[$i] )" -ForegroundColor 0 -BackgroundColor $secondaryColor
                     }
                 }
                 else
                 {
                     if ( $selectedItems.ContainsKey($i))
                     {
-                        Write-ColorText " [X] $( $Options[$i] )" -Color $secondaryColor
+                        Write-ColorText " (X) $( $Options[$i] )" -Color $thirdColor
                     }
                     else
                     {
-                        Write-ColorText " [ ] $( $Options[$i] )" -Color $whiteBlackColor
+                        Write-ColorText " ( ) $( $Options[$i] )" -Color $whiteBlackColor
                     }
                 }
             }
@@ -83,17 +94,27 @@ function Show-Menu
                     $list += $i
                     $selectedItems[$i] = $Options[$i]
                 }
-            } elseif ($key -eq 88 -and ($keyInfo.ControlKeyState -band 0x0008)) {
-                # Clear List When CRTL+X
+            } elseif ($key -eq 68 -and ($keyInfo.ControlKeyState -band 0x0008)) {
+                # Clear List When CRTL+D
                 $list = @()
                 $selectedItems.Clear()
+            } elseif ($key -eq 90 -and ($keyInfo.ControlKeyState -band 0x0008)) {
+                # Get Old Selected
+                # Restore old list (array)
+                $list = $oldList.Clone()
+
+                # Restore old selected items (hashtable)
+                $selectedItems = @{}
+                foreach ($key in $oldSelectedItems.Keys) {
+                    $selectedItems[$key] = $oldSelectedItems[$key]
+                }
             }
 
             switch ($key)
             {
                 38 {
                     # arrow up
-                    Clear-Host
+                    #Clear-Host
                     if ($selectedOption -ne 0)
                     {
                         $selectedOption = ($selectedOption - 1) % $Options.Length
@@ -105,7 +126,7 @@ function Show-Menu
                 }
                 40 {
                     # arrow down
-                    Clear-Host
+                    #Clear-Host
                     if ($selectedOption -ne $( $Options.Length - 1 ))
                     {
                         $selectedOption = ($selectedOption + 1) % $Options.Length
@@ -117,11 +138,21 @@ function Show-Menu
                 }
                 13 {
                     # enter
+                    if ($list.Count -gt 0) {
+                        $oldList = $list.Clone()
+                    }
+
+                    if ($selectedItems.Count -gt 0) {
+                        $oldSelectedItems = @{}
+                        foreach ($key in $selectedItems.Keys) {
+                            $oldSelectedItems[$key] = $selectedItems[$key]
+                        }
+                    }
                     return $list
                 }
                 32 {
                     #space
-                    Clear-Host
+                    #Clear-Host
                     $isExist = -1;
                     $newList = @()
                     for ($j = 0; $j -lt $list.Length; $j++) {
@@ -184,7 +215,7 @@ function Start_Script
 {
     try
     {
-        Clear-Host
+        #Clear-Host
         Write-ColorText $( $bannerText + $bannerInfo1 ) -Color $primaryColor
         $userCommands = Read-Host -Prompt "Enter your commands separated with && "
         $selectedItems = Show-Menu -Options $projects
