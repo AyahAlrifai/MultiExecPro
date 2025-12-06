@@ -4,6 +4,8 @@ $thirdColor = 209
 $whiteBlackColor = 255
 
 $projects = Get-ChildItem -Directory -Exclude .* | ForEach-Object { $_.Name }
+$oldSelectedItems = @{ }
+$oldList = @();
 
 $upArrow = [char]::ConvertFromUtf32(0x2191)
 $downArrow = [char]::ConvertFromUtf32(0x2193)
@@ -20,8 +22,9 @@ $bannerText = @"
 
 $bannerInfo2 = @"
 
-  Eng. Ayah Refai                   ( CTRL+A ) Select All                  ( CTRL+D ) Deselect All
-  ( $upArrow$downArrow ) Move Between Options       ( space ) Select/Deselect Option       ( $enterIcon ) Execution
+  Eng. Ayah Refai                        ( CTRL+A ) Select All                  ( CTRL+D ) Deselect All
+  ( $upArrow$downArrow ) Move Between Options            ( space ) Select/Deselect Option       ( $enterIcon ) Execution
+  ( CTRL+S ) Save Current Selection      ( CTRL+Z ) Past Saved Selection
 
 "@
 
@@ -48,8 +51,11 @@ function Show-Menu
 
     while ($true)
     {
-        Write-ColorText ("Old Selected Items: " + ($oldSelectedItems.Keys -join ', ')) -Color $primaryColor
-        Write-ColorText ("Old List: " + ($oldList -join ', ')) -Color $primaryColor
+
+        Write-ColorText ("Selected Items: " + ($selectedItems.Keys -join ', ')) -Color $primaryColor
+        Write-ColorText ("List: " + ($list -join ', ')) -Color $primaryColor
+        Write-ColorText ("Old Selected Items: " + ($global:oldSelectedItems.Keys -join ', ')) -Color $primaryColor
+        Write-ColorText ("Old List: " + ($global:oldList -join ', ')) -Color $primaryColor
 
         try
         {
@@ -96,6 +102,20 @@ function Show-Menu
                 # Clear List When CRTL+D
                 $list = @()
                 $selectedItems.Clear()
+            } elseif ($key -eq 90 -and ($keyInfo.ControlKeyState -band 0x0008)) {
+                # CTRL + Z
+                $list = $global:oldList.Clone()
+                $selectedItems = @{}
+                foreach ($key in $global:oldSelectedItems.Keys) {
+                    $selectedItems[$key] = $global:oldSelectedItems[$key]
+                }
+            } elseif ($key -eq 83 -and ($keyInfo.ControlKeyState -band 0x0008)) {
+                # CTRL + S
+                $global:oldList = $list.Clone()
+                $global:oldSelectedItems = @{}
+                foreach ($key in $selectedItems.Keys) {
+                    $global:oldSelectedItems[$key] = $selectedItems[$key]
+                }
             }
 
             switch ($key)
