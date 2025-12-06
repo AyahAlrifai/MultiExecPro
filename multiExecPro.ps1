@@ -4,8 +4,6 @@ $thirdColor = 209
 $whiteBlackColor = 255
 
 $projects = Get-ChildItem -Directory -Exclude .* | ForEach-Object { $_.Name }
-$oldSelectedItems = @{ }
-$oldList = @();
 
 $upArrow = [char]::ConvertFromUtf32(0x2191)
 $downArrow = [char]::ConvertFromUtf32(0x2193)
@@ -98,16 +96,6 @@ function Show-Menu
                 # Clear List When CRTL+D
                 $list = @()
                 $selectedItems.Clear()
-            } elseif ($key -eq 90 -and ($keyInfo.ControlKeyState -band 0x0008)) {
-                # Get Old Selected
-                # Restore old list (array)
-                $list = $oldList.Clone()
-
-                # Restore old selected items (hashtable)
-                $selectedItems = @{}
-                foreach ($key in $oldSelectedItems.Keys) {
-                    $selectedItems[$key] = $oldSelectedItems[$key]
-                }
             }
 
             switch ($key)
@@ -138,16 +126,6 @@ function Show-Menu
                 }
                 13 {
                     # enter
-                    if ($list.Count -gt 0) {
-                        $oldList = $list.Clone()
-                    }
-
-                    if ($selectedItems.Count -gt 0) {
-                        $oldSelectedItems = @{}
-                        foreach ($key in $selectedItems.Keys) {
-                            $oldSelectedItems[$key] = $selectedItems[$key]
-                        }
-                    }
                     return $list
                 }
                 32 {
