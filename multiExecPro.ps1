@@ -22,9 +22,9 @@ $bannerText = @"
 
 $bannerInfo2 = @"
 
-  Eng. Ayah Refai                        ( CTRL+A ) Select All                  ( CTRL+D ) Deselect All
+  Eng. Ayah Refai                        ( A ) Select All                       ( D ) Deselect All
   ( $upArrow$downArrow ) Move Between Options            ( space ) Select/Deselect Option       ( $enterIcon ) Execution
-  ( CTRL+S ) Save Current Selection      ( CTRL+Z ) Past Saved Selection
+  ( S ) Save Current Selection           ( Z ) Past Saved Selection
 
 "@
 
@@ -51,12 +51,6 @@ function Show-Menu
 
     while ($true)
     {
-
-        Write-ColorText ("Selected Items: " + ($selectedItems.Keys -join ', ')) -Color $primaryColor
-        Write-ColorText ("List: " + ($list -join ', ')) -Color $primaryColor
-        Write-ColorText ("Old Selected Items: " + ($global:oldSelectedItems.Keys -join ', ')) -Color $primaryColor
-        Write-ColorText ("Old List: " + ($global:oldList -join ', ')) -Color $primaryColor
-
         try
         {
             Clear-Host
@@ -89,7 +83,7 @@ function Show-Menu
             $keyInfo = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
             $key = $keyInfo.VirtualKeyCode
 
-            if ($key -eq 65 -and ($keyInfo.ControlKeyState -band 0x0008)) {
+            if ($key -eq 65) {
                 # Select All When CTRL+A
                 $list = @()
                 $selectedItems.Clear()
@@ -98,18 +92,18 @@ function Show-Menu
                     $list += $i
                     $selectedItems[$i] = $Options[$i]
                 }
-            } elseif ($key -eq 68 -and ($keyInfo.ControlKeyState -band 0x0008)) {
+            } elseif ($key -eq 68) {
                 # Clear List When CRTL+D
                 $list = @()
                 $selectedItems.Clear()
-            } elseif ($key -eq 90 -and ($keyInfo.ControlKeyState -band 0x0008)) {
+            } elseif ($key -eq 90) {
                 # CTRL + Z
                 $list = $global:oldList.Clone()
                 $selectedItems = @{}
                 foreach ($key in $global:oldSelectedItems.Keys) {
                     $selectedItems[$key] = $global:oldSelectedItems[$key]
                 }
-            } elseif ($key -eq 83 -and ($keyInfo.ControlKeyState -band 0x0008)) {
+            } elseif ($key -eq 83) {
                 # CTRL + S
                 $global:oldList = $list.Clone()
                 $global:oldSelectedItems = @{}
