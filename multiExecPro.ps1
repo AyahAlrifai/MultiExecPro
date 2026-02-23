@@ -174,8 +174,10 @@ function Show-Menu {
     param([string[]]$Options)
 
     $cursor = 0
-    # HashSet gives O(1) Contains / Add / Remove for toggle operations
-    $selected = [System.Collections.Generic.HashSet[int]]::new()
+
+    # Ordered + Fast selection tracking
+    $selectedSet  = [System.Collections.Generic.HashSet[int]]::new()
+    $selectedList = [System.Collections.Generic.List[int]]::new()
 
     $hints = @(
         "$($sym.Up)$($sym.Down) Navigate   Space Toggle   A All   D Clear",
@@ -184,73 +186,117 @@ function Show-Menu {
 
     Clear-Host
     Write-Banner -Hints $hints
-    $menuTopRow = [Console]::CursorTop   # cursor row of the first item line
+    $menuTopRow = [Console]::CursorTop
     [Console]::CursorVisible = $false
 
     try {
         while ($true) {
-            # ── Overwrite item rows in-place (cursor repositioning, not Clear-Host) ──
+
             [Console]::SetCursorPosition(0, $menuTopRow)
 
             for ($i = 0; $i -lt $Options.Count; $i++) {
+
                 $isFocused = ($i -eq $cursor)
-                $isChecked = $selected.Contains($i)
-                $mark      = if ($isChecked) { $sym.Check } else { $sym.Empty }
-                $label     = "  $mark  $($Options[$i])"
+                $isChecked = $selectedSet.Contains($i)
+
+                $mark  = if ($isChecked) { $sym.Check } else { $sym.Empty }
+                $label = "  $mark  $($Options[$i])"
 
                 if ($isFocused) {
-                    # FillBg: highlight extends to right edge of terminal
                     Write-Styled $label -Fg $c.Cursor_Fg -Bg $c.Cursor_Bg -Bold -FillBg
-                } elseif ($isChecked) {
+                }
+                elseif ($isChecked) {
                     Write-Styled $label -Fg $c.Checked
-                } else {
+                }
+                else {
                     Write-Styled $label -Fg $c.Normal
                 }
             }
 
-            # ── Status bar ───────────────────────────────────────────────────
             Write-Styled ''
-            $selCount    = $selected.Count
+
+            $selCount = $selectedSet.Count
             $statusColor = if ($selCount -gt 0) { $c.Accent } else { $c.Dim }
             $noSelHint   = if ($selCount -eq 0) { '  (nothing selected)' } else { '' }
+
             Write-Styled "  Selected: $selCount / $($Options.Count)$noSelHint  " -Fg $statusColor
 
-            # ── Read next keypress ────────────────────────────────────────────
             $ki = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
 
             switch ($ki.VirtualKeyCode) {
-                38 { # ↑ — move up, wrap
+
+                38 {
                     $cursor = if ($cursor -gt 0) { $cursor - 1 } else { $Options.Count - 1 }
                 }
-                40 { # ↓ — move down, wrap
+
+                40 {
                     $cursor = if ($cursor -lt $Options.Count - 1) { $cursor + 1 } else { 0 }
                 }
-                32 { # Space — toggle current item
-                    if (-not $selected.Remove($cursor)) { [void]$selected.Add($cursor) }
-                }
-                65 { # A — select all
-                    0..($Options.Count - 1) | ForEach-Object { [void]$selected.Add($_) }
-                }
-                68 { # D — deselect all
-                    $selected.Clear()
-                }
-                83 { # S — save current selection for this session
-                    $script:savedIndices = [System.Collections.Generic.List[int]]($selected | Sort-Object)
-                    # Brief inline feedback — overwrite the status bar line
-                    [Console]::SetCursorPosition(0, [Console]::CursorTop - 1)
-                    Write-Styled "  Saved $($selected.Count) item(s).  " -Fg $c.Success
-                    Start-Sleep -Milliseconds 600
-                }
-                90 { # Z — restore saved selection
-                    $selected.Clear()
-                    foreach ($idx in $script:savedIndices) { [void]$selected.Add($idx) }
-                }
-                13 { # Enter — confirm and return sorted indices
-                    if ($selected.Count -gt 0) {
-                        return [int[]]($selected | Sort-Object)
+
+                32 {
+                    # Toggle while preserving order
+
+                    if ($selectedSet.Add($cursor)) {
+                        $selectedList.Add($cursor)
+                    }
+                    else {
+                        $selectedSet.Remove($cursor)
+                        $selectedList.Remove($cursor)
                     }
                 }
-                27 { # Esc — cancel, return to command input
+
+                65 {
+                    # Select all in order
+
+                    $selectedSet.Clear()
+                    $selectedList.Clear()
+
+                    0..($Options.Count - 1) | ForEach-Object {
+                        [void]$selectedSet.Add($_)
+                        $selectedList.Add($_)
+                    }
+                }
+
+                68 {
+                    # Clear all
+
+                    $selectedSet.Clear()
+                    $selectedList.Clear()
+                }
+
+                83 {
+                    # Save ordered selection
+
+                    $script:savedIndices =
+                        [System.Collections.Generic.List[int]]($selectedList)
+
+                    [Console]::SetCursorPosition(0, [Console]::CursorTop - 1)
+                    Write-Styled "  Saved $($selectedList.Count) item(s).  " -Fg $c.Success
+
+                    Start-Sleep -Milliseconds 600
+                }
+
+                90 {
+                    # Restore ordered selection
+
+                    $selectedSet.Clear()
+                    $selectedList.Clear()
+
+                    foreach ($idx in $script:savedIndices) {
+                        [void]$selectedSet.Add($idx)
+                        $selectedList.Add($idx)
+                    }
+                }
+
+                13 {
+                    # Enter → return ordered selection
+
+                    if ($selectedList.Count -gt 0) {
+                        return [int[]]$selectedList
+                    }
+                }
+
+                27 {
                     return @()
                 }
             }
