@@ -174,8 +174,8 @@ function Show-Menu {
     param([string[]]$Options)
 
     $cursor = 0
+    $offset = 0
 
-    # Ordered + Fast selection tracking
     $selectedSet  = [System.Collections.Generic.HashSet[int]]::new()
     $selectedList = [System.Collections.Generic.List[int]]::new()
 
@@ -186,15 +186,36 @@ function Show-Menu {
 
     Clear-Host
     Write-Banner -Hints $hints
+
     $menuTopRow = [Console]::CursorTop
     [Console]::CursorVisible = $false
 
     try {
         while ($true) {
 
+            $height = [Console]::WindowHeight - $menuTopRow - 3
+            if ($height -lt 3) { $height = 3 }
+
+            # Scroll window tracking
+            if ($cursor -lt $offset) {
+                $offset = $cursor
+            }
+
+            if ($cursor -ge ($offset + $height)) {
+                $offset = $cursor - $height + 1
+            }
+
             [Console]::SetCursorPosition(0, $menuTopRow)
 
-            for ($i = 0; $i -lt $Options.Count; $i++) {
+            # Draw visible window only
+            for ($row = 0; $row -lt $height; $row++) {
+
+                $i = $offset + $row
+
+                if ($i -ge $Options.Count) {
+                    Write-Styled ""
+                    continue
+                }
 
                 $isFocused = ($i -eq $cursor)
                 $isChecked = $selectedSet.Contains($i)
@@ -217,9 +238,8 @@ function Show-Menu {
 
             $selCount = $selectedSet.Count
             $statusColor = if ($selCount -gt 0) { $c.Accent } else { $c.Dim }
-            $noSelHint   = if ($selCount -eq 0) { '  (nothing selected)' } else { '' }
 
-            Write-Styled "  Selected: $selCount / $($Options.Count)$noSelHint  " -Fg $statusColor
+            Write-Styled "  Selected: $selCount / $($Options.Count)  " -Fg $statusColor
 
             $ki = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
 
@@ -234,7 +254,6 @@ function Show-Menu {
                 }
 
                 32 {
-                    # Toggle while preserving order
 
                     if ($selectedSet.Add($cursor)) {
                         $selectedList.Add($cursor)
@@ -246,7 +265,6 @@ function Show-Menu {
                 }
 
                 65 {
-                    # Select all in order
 
                     $selectedSet.Clear()
                     $selectedList.Clear()
@@ -258,26 +276,21 @@ function Show-Menu {
                 }
 
                 68 {
-                    # Clear all
 
                     $selectedSet.Clear()
                     $selectedList.Clear()
                 }
 
                 83 {
-                    # Save ordered selection
 
                     $script:savedIndices =
                         [System.Collections.Generic.List[int]]($selectedList)
 
-                    [Console]::SetCursorPosition(0, [Console]::CursorTop - 1)
-                    Write-Styled "  Saved $($selectedList.Count) item(s).  " -Fg $c.Success
-
+                    Write-Styled "  Saved $($selectedList.Count) items " -Fg $c.Success
                     Start-Sleep -Milliseconds 600
                 }
 
                 90 {
-                    # Restore ordered selection
 
                     $selectedSet.Clear()
                     $selectedList.Clear()
@@ -289,7 +302,6 @@ function Show-Menu {
                 }
 
                 13 {
-                    # Enter → return ordered selection
 
                     if ($selectedList.Count -gt 0) {
                         return [int[]]$selectedList
@@ -306,7 +318,6 @@ function Show-Menu {
         [Console]::CursorVisible = $true
     }
 }
-
 # ═══════════════════════════════════════════════════════════════════════════════
 #  COMMAND EXECUTION WITH PER-PROJECT SUMMARY
 # ═══════════════════════════════════════════════════════════════════════════════
