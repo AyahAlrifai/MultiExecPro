@@ -6,13 +6,15 @@ $ErrorActionPreference = 'Continue'
 #  SYMBOLS
 # ═══════════════════════════════════════════════════════════════════════════════
 $sym = @{
-    Up    = [char]::ConvertFromUtf32(0x2191)   # ↑
-    Down  = [char]::ConvertFromUtf32(0x2193)   # ↓
-    Enter = [char]::ConvertFromUtf32(0x23CE)   # ⏎
-    Check = [char]::ConvertFromUtf32(0x25CF)   # ● filled
-    Empty = [char]::ConvertFromUtf32(0x25CB)   # ○ empty
-    OK    = [char]::ConvertFromUtf32(0x2714)   # ✔
-    Fail  = [char]::ConvertFromUtf32(0x2718)   # ✘
+    Up       = [char]::ConvertFromUtf32(0x2191)   # ↑
+    Down     = [char]::ConvertFromUtf32(0x2193)   # ↓
+    Enter    = [char]::ConvertFromUtf32(0x23CE)   # ⏎
+    Check    = [char]::ConvertFromUtf32(0x25CF)   # ● filled
+    Empty    = [char]::ConvertFromUtf32(0x25CB)   # ○ empty
+    OK       = [char]::ConvertFromUtf32(0x2714)   # ✔
+    Fail     = [char]::ConvertFromUtf32(0x2718)   # ✘
+    MoreUp   = [char]::ConvertFromUtf32(0x25B4)   # ▴ scroll-up indicator
+    MoreDown = [char]::ConvertFromUtf32(0x25BE)   # ▾ scroll-down indicator
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -33,29 +35,33 @@ $isDark = Get-IsDarkMode
 # 256-color ANSI palette — two variants, identical semantics
 $c = if ($isDark) {
     @{
-        Banner    = 77    # bright teal-green   — header art
-        Accent    = 215   # warm amber          — hints, highlights
-        Checked   = 114   # sage green          — selected items
-        Normal    = 253   # near-white          — unselected items
-        Cursor_Fg = 16    # black               — text on cursor row
-        Cursor_Bg = 215   # amber               — cursor row background
-        Dim       = 240   # muted gray          — secondary info
-        Error     = 203   # soft red
-        Success   = 82    # bright green
-        Border    = 238   # dark gray           — dividers
+        Banner    = 141   # medium orchid    — header art
+        Accent    = 81    # sky blue         — highlights, cursor
+        Checked   = 120   # bright green     — selected items
+        Normal    = 250   # light gray       — unselected items
+        Cursor_Fg = 235   # near-black       — text on cursor row
+        Cursor_Bg = 99    # medium purple    — cursor row background
+        Dim       = 241   # medium gray      — secondary info
+        Error     = 204   # hot pink         — errors
+        Success   = 120   # bright green     — success
+        Border    = 237   # very dark gray   — dividers
+        Key_Fg    = 16    # black            — key label text
+        Key_Bg    = 99    # medium purple    — key label background
     }
 } else {
     @{
-        Banner    = 22    # dark forest green
-        Accent    = 130   # burnt orange
-        Checked   = 28    # forest green
-        Normal    = 234   # near-black
-        Cursor_Fg = 231   # white
-        Cursor_Bg = 130   # burnt orange
-        Dim       = 244   # medium gray
-        Error     = 124   # deep red
-        Success   = 28    # forest green
-        Border    = 250   # light gray
+        Banner    = 91    # deep purple      — header art
+        Accent    = 31    # teal             — highlights, cursor
+        Checked   = 28    # forest green     — selected items
+        Normal    = 236   # near-black       — unselected items
+        Cursor_Fg = 231   # white            — text on cursor row
+        Cursor_Bg = 91    # deep purple      — cursor row background
+        Dim       = 245   # medium gray      — secondary info
+        Error     = 160   # bright red       — errors
+        Success   = 34    # bright green     — success
+        Border    = 252   # light gray       — dividers
+        Key_Fg    = 231   # white            — key label text
+        Key_Bg    = 91    # deep purple      — key label background
     }
 }
 
@@ -121,6 +127,19 @@ function Write-SectionHeader {
     Write-Styled ("  " + ("=" * $left) + $label + ("=" * $right)) -Fg $FgColor -Bold
 }
 
+# Compact keybinding strip rendered at the bottom of the menu.
+# Each entry is @{Key='X'; Desc='action'} — rendered as [X] action
+function Write-KeyBar {
+    param([hashtable[]]$Entries)
+    $line = '  '
+    foreach ($e in $Entries) {
+        $k     = $e.Key
+        $d     = $e.Desc
+        $line += "$ESC[48;5;$($c.Key_Bg)m$ESC[38;5;$($c.Key_Fg)m$ESC[1m $k $ESC[0m $ESC[38;5;$($c.Dim)m$d$ESC[0m   "
+    }
+    Write-Host "$line$ESC[0K"
+}
+
 # ═══════════════════════════════════════════════════════════════════════════════
 #  PROJECTS
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -179,13 +198,8 @@ function Show-Menu {
     $selectedSet  = [System.Collections.Generic.HashSet[int]]::new()
     $selectedList = [System.Collections.Generic.List[int]]::new()
 
-    $hints = @(
-        "$($sym.Up)$($sym.Down) Navigate   Space Toggle   A All   D Clear",
-        "S Save   Z Restore   $($sym.Enter) Run   Esc Cancel"
-    )
-
     Clear-Host
-    Write-Banner -Hints $hints
+    Write-Banner
 
     $menuTopRow = [Console]::CursorTop
     [Console]::CursorVisible = $false
@@ -193,82 +207,85 @@ function Show-Menu {
     try {
         while ($true) {
 
-            $height = [Console]::WindowHeight - $menuTopRow - 3
-            if ($height -lt 3) { $height = 3 }
+            # Reserve 3 rows (status + keybar + newline-safety) so the last
+            # Write-Host newline lands one row above windowLastRow — no scroll.
+            $windowLastRow = [Console]::WindowTop + [Console]::WindowHeight - 1
+            $height = [Math]::Max(3, $windowLastRow - $menuTopRow - 3)
 
-            # Scroll window tracking
-            if ($cursor -lt $offset) {
-                $offset = $cursor
-            }
-
-            if ($cursor -ge ($offset + $height)) {
-                $offset = $cursor - $height + 1
-            }
+            # Keep cursor inside the visible slice
+            if ($cursor -lt $offset)           { $offset = $cursor }
+            if ($cursor -ge $offset + $height) { $offset = $cursor - $height + 1 }
 
             [Console]::SetCursorPosition(0, $menuTopRow)
 
-            # Draw visible window only
+            # ── Service list ──────────────────────────────────────────────
             for ($row = 0; $row -lt $height; $row++) {
 
                 $i = $offset + $row
 
                 if ($i -ge $Options.Count) {
-                    Write-Styled ""
+                    Write-Styled ''
                     continue
                 }
 
                 $isFocused = ($i -eq $cursor)
                 $isChecked = $selectedSet.Contains($i)
-
-                $mark  = if ($isChecked) { $sym.Check } else { $sym.Empty }
-                $label = "  $mark  $($Options[$i])"
+                $mark      = if ($isChecked) { $sym.Check } else { $sym.Empty }
+                $label     = "  $mark  $($Options[$i])"
 
                 if ($isFocused) {
                     Write-Styled $label -Fg $c.Cursor_Fg -Bg $c.Cursor_Bg -Bold -FillBg
-                }
-                elseif ($isChecked) {
+                } elseif ($isChecked) {
                     Write-Styled $label -Fg $c.Checked
-                }
-                else {
+                } else {
                     Write-Styled $label -Fg $c.Normal
                 }
             }
 
-            Write-Styled ''
+            # ── Status + scroll indicators ────────────────────────────────
+            $selCount   = $selectedSet.Count
+            $statColor  = if ($selCount -gt 0) { $c.Accent } else { $c.Dim }
+            $above      = $offset
+            $below      = [Math]::Max(0, $Options.Count - $offset - $height)
+            $scrollHint = ''
+            if ($above -gt 0) { $scrollHint += "   $($sym.MoreUp) $above" }
+            if ($below -gt 0) { $scrollHint += "   $($sym.MoreDown) $below" }
+            Write-Styled "  $($sym.Check) $selCount of $($Options.Count) selected$scrollHint" -Fg $statColor
 
-            $selCount = $selectedSet.Count
-            $statusColor = if ($selCount -gt 0) { $c.Accent } else { $c.Dim }
+            # ── Key binding bar ───────────────────────────────────────────
+            Write-KeyBar @(
+                @{Key="$($sym.Up)$($sym.Down)"; Desc='Move'}
+                @{Key='Space';                  Desc='Select'}
+                @{Key='A';                      Desc='All'}
+                @{Key='D';                      Desc='Clear'}
+                @{Key='S';                      Desc='Save'}
+                @{Key='Z';                      Desc='Restore'}
+                @{Key="$($sym.Enter)";          Desc='Run'}
+                @{Key='Esc';                    Desc='Exit'}
+            )
 
-            Write-Styled "  Selected: $selCount / $($Options.Count)  " -Fg $statusColor
-
+            # ── Input ─────────────────────────────────────────────────────
             $ki = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
 
             switch ($ki.VirtualKeyCode) {
 
-                38 {
-                    $cursor = if ($cursor -gt 0) { $cursor - 1 } else { $Options.Count - 1 }
-                }
+                38 { $cursor = if ($cursor -gt 0) { $cursor - 1 } else { $Options.Count - 1 } }
 
-                40 {
-                    $cursor = if ($cursor -lt $Options.Count - 1) { $cursor + 1 } else { 0 }
-                }
+                40 { $cursor = if ($cursor -lt $Options.Count - 1) { $cursor + 1 } else { 0 } }
 
                 32 {
-
                     if ($selectedSet.Add($cursor)) {
                         $selectedList.Add($cursor)
-                    }
-                    else {
-                        $selectedSet.Remove($cursor)
-                        $selectedList.Remove($cursor)
+                    } else {
+                        [void]$selectedSet.Remove($cursor)
+                        $pos = $selectedList.IndexOf($cursor)
+                        if ($pos -ge 0) { $selectedList.RemoveAt($pos) }
                     }
                 }
 
                 65 {
-
                     $selectedSet.Clear()
                     $selectedList.Clear()
-
                     0..($Options.Count - 1) | ForEach-Object {
                         [void]$selectedSet.Add($_)
                         $selectedList.Add($_)
@@ -276,25 +293,19 @@ function Show-Menu {
                 }
 
                 68 {
-
                     $selectedSet.Clear()
                     $selectedList.Clear()
                 }
 
                 83 {
-
-                    $script:savedIndices =
-                        [System.Collections.Generic.List[int]]($selectedList)
-
-                    Write-Styled "  Saved $($selectedList.Count) items " -Fg $c.Success
+                    $script:savedIndices = [System.Collections.Generic.List[int]]($selectedList)
+                    Write-Styled "  Saved $($selectedList.Count) items" -Fg $c.Success
                     Start-Sleep -Milliseconds 600
                 }
 
                 90 {
-
                     $selectedSet.Clear()
                     $selectedList.Clear()
-
                     foreach ($idx in $script:savedIndices) {
                         [void]$selectedSet.Add($idx)
                         $selectedList.Add($idx)
@@ -302,15 +313,12 @@ function Show-Menu {
                 }
 
                 13 {
-
                     if ($selectedList.Count -gt 0) {
                         return [int[]]$selectedList
                     }
                 }
 
-                27 {
-                    return @()
-                }
+                27 { return @() }
             }
         }
     }
@@ -364,7 +372,12 @@ function Invoke-MultiExec {
             Set-Location $rootPath
         }
 
-        $elapsed = (Get-Date) - $start
+        $elapsed      = (Get-Date) - $start
+        $resultIcon   = if ($ok) { $sym.OK      } else { $sym.Fail    }
+        $resultColor  = if ($ok) { $c.Success   } else { $c.Error     }
+        $resultStatus = if ($ok) { 'Success'    } else { 'Failed'     }
+        $resultTime   = $elapsed.ToString('mm\:ss')
+        Write-Styled "  $resultIcon  $name  [$resultStatus]  $resultTime" -Fg $resultColor -Bold
         $results.Add(@{ Name = $name; OK = $ok; Elapsed = $elapsed })
     }
 
