@@ -35,33 +35,33 @@ $isDark = Get-IsDarkMode
 # 256-color ANSI palette — two variants, identical semantics
 $c = if ($isDark) {
     @{
-        Banner    = 141   # medium orchid    — header art
-        Accent    = 81    # sky blue         — highlights, cursor
-        Checked   = 120   # bright green     — selected items
+        Banner    = 211   # soft rose        — header art
+        Accent    = 220   # warm gold        — highlights, cursor
+        Checked   = 220   # warm gold        — selected items
         Normal    = 250   # light gray       — unselected items
         Cursor_Fg = 235   # near-black       — text on cursor row
-        Cursor_Bg = 99    # medium purple    — cursor row background
+        Cursor_Bg = 220   # warm gold        — cursor row background
         Dim       = 241   # medium gray      — secondary info
-        Error     = 204   # hot pink         — errors
-        Success   = 120   # bright green     — success
+        Error     = 196   # bright red       — errors
+        Success   = 82    # bright green     — success
         Border    = 237   # very dark gray   — dividers
-        Key_Fg    = 16    # black            — key label text
-        Key_Bg    = 99    # medium purple    — key label background
+        Key_Fg    = 235   # near-black       — key label text
+        Key_Bg    = 220   # warm gold        — key label background
     }
 } else {
     @{
-        Banner    = 91    # deep purple      — header art
-        Accent    = 31    # teal             — highlights, cursor
-        Checked   = 28    # forest green     — selected items
+        Banner    = 161   # deep rose        — header art
+        Accent    = 130   # dark amber       — highlights, cursor
+        Checked   = 136   # dark goldenrod   — selected items
         Normal    = 236   # near-black       — unselected items
         Cursor_Fg = 231   # white            — text on cursor row
-        Cursor_Bg = 91    # deep purple      — cursor row background
+        Cursor_Bg = 130   # dark amber       — cursor row background
         Dim       = 245   # medium gray      — secondary info
-        Error     = 160   # bright red       — errors
-        Success   = 34    # bright green     — success
+        Error     = 160   # deep red         — errors
+        Success   = 34    # dark green       — success
         Border    = 252   # light gray       — dividers
         Key_Fg    = 231   # white            — key label text
-        Key_Bg    = 91    # deep purple      — key label background
+        Key_Bg    = 130   # dark amber       — key label background
     }
 }
 
