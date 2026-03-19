@@ -379,7 +379,7 @@ function Start-MultiExec {
         try {
             # ── Load projects fresh from current directory each iteration ──
             $rootPath = (Get-Location).Path
-            $projects = Get-Projects
+            $projects = @(Get-Projects)
 
             if ($projects.Count -eq 0) {
                 Write-Styled "  No subdirectories found in '$rootPath'." -Fg $c.Error
