@@ -99,7 +99,7 @@ if ($Platform -eq "windows") {
                    elseif (Test-Path "$HOME/.bashrc")       { "$HOME/.bashrc" }
                    else                                     { "$HOME/.bash_profile" }
 
-    $ExportLine  = "export PATH=`"$InstallDir:`$PATH`""
+    $ExportLine  = "export PATH=`"${InstallDir}:`$PATH`""
     $AliasLine   = "alias $ScriptName='pwsh $TargetPath'"
 
     $ShellContent = Get-Content $ShellConfig -Raw -ErrorAction SilentlyContinue
