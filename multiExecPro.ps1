@@ -366,11 +366,117 @@ function Invoke-MultiExec {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  COMMAND INPUT SCREEN
+#  COMMAND INPUT SCREEN  (cross-platform arrow-key history navigation)
 # ═══════════════════════════════════════════════════════════════════════════════
+function Read-LineWithHistory {
+    param([string]$Prompt)
+
+    $histIdx  = $script:commandHistory.Count   # points past the end = "new" entry
+    $buffer   = [System.Text.StringBuilder]::new()
+    $cursorX  = 0                              # position within buffer
+
+    $promptLen = $Prompt.Length
+    Write-Host $Prompt -NoNewline
+    [Console]::CursorVisible = $true
+
+    # Helper: redraw the input line in place
+    function Redraw([string]$text, [int]$cur) {
+        $col = $promptLen
+        [Console]::SetCursorPosition($col, [Console]::CursorTop)
+        Write-Host ($text + ' ') -NoNewline          # +space clears deleted char
+        [Console]::SetCursorPosition($col + $cur, [Console]::CursorTop)
+    }
+
+    try {
+        while ($true) {
+            $ki = [Console]::ReadKey($true)   # $true = intercept (no echo)
+
+            switch ($ki.Key) {
+                'Enter' {
+                    Write-Host ''
+                    return $buffer.ToString()
+                }
+
+                'Backspace' {
+                    if ($cursorX -gt 0) {
+                        $buffer.Remove($cursorX - 1, 1) | Out-Null
+                        $cursorX--
+                        Redraw $buffer.ToString() $cursorX
+                    }
+                }
+
+                'Delete' {
+                    if ($cursorX -lt $buffer.Length) {
+                        $buffer.Remove($cursorX, 1) | Out-Null
+                        Redraw $buffer.ToString() $cursorX
+                    }
+                }
+
+                'LeftArrow' {
+                    if ($cursorX -gt 0) {
+                        $cursorX--
+                        [Console]::SetCursorPosition($promptLen + $cursorX, [Console]::CursorTop)
+                    }
+                }
+
+                'RightArrow' {
+                    if ($cursorX -lt $buffer.Length) {
+                        $cursorX++
+                        [Console]::SetCursorPosition($promptLen + $cursorX, [Console]::CursorTop)
+                    }
+                }
+
+                'UpArrow' {
+                    # Go back in history
+                    if ($script:commandHistory.Count -gt 0 -and $histIdx -gt 0) {
+                        $histIdx--
+                        $buffer.Clear() | Out-Null
+                        $buffer.Append($script:commandHistory[$histIdx]) | Out-Null
+                        $cursorX = $buffer.Length
+                        Redraw $buffer.ToString() $cursorX
+                    }
+                }
+
+                'DownArrow' {
+                    # Go forward in history
+                    if ($histIdx -lt $script:commandHistory.Count - 1) {
+                        $histIdx++
+                        $buffer.Clear() | Out-Null
+                        $buffer.Append($script:commandHistory[$histIdx]) | Out-Null
+                    } else {
+                        $histIdx = $script:commandHistory.Count
+                        $buffer.Clear() | Out-Null
+                    }
+                    $cursorX = $buffer.Length
+                    Redraw $buffer.ToString() $cursorX
+                }
+
+                'Escape' {
+                    # Clear current line
+                    $buffer.Clear() | Out-Null
+                    $cursorX = 0
+                    Redraw '' 0
+                }
+
+                default {
+                    # Printable character
+                    if ($ki.KeyChar -ne "`0" -and -not [char]::IsControl($ki.KeyChar)) {
+                        $buffer.Insert($cursorX, $ki.KeyChar) | Out-Null
+                        $cursorX++
+                        Redraw $buffer.ToString() $cursorX
+                    }
+                }
+            }
+        }
+    }
+    finally {
+        [Console]::CursorVisible = $true
+    }
+}
+
 function Get-UserCommand {
     Clear-Host
-    Write-Banner -Hints @("$($sym.Up)$($sym.Down) Browse history in the input prompt")
+    Write-Banner -Hints @("$($sym.Up)$($sym.Down) Browse history   $($sym.Left ?? '<') $($sym.Right ?? '>') Move cursor   Esc Clear line")
     Write-Styled ''
 
     if ($script:commandHistory.Count -gt 0) {
@@ -381,7 +487,7 @@ function Get-UserCommand {
         Write-Styled ''
     }
 
-    $cmd = (Read-Host '  Enter commands (separate with &&)').Trim()
+    $cmd = (Read-LineWithHistory -Prompt '  Enter commands (separate with &&): ').Trim()
 
     if ($cmd -and ($script:commandHistory.Count -eq 0 -or $script:commandHistory[-1] -ne $cmd)) {
         $script:commandHistory.Add($cmd)
