@@ -476,7 +476,7 @@ function Read-LineWithHistory {
 
 function Get-UserCommand {
     Clear-Host
-    Write-Banner -Hints @("$($sym.Up)$($sym.Down) Browse history   $($sym.Left ?? '<') $($sym.Right ?? '>') Move cursor   Esc Clear line")
+    Write-Banner -Hints @("$($sym.Up)$($sym.Down) Browse history   $([char]0x2190)$([char]0x2192) Move cursor   Esc Clear line")
     Write-Styled ''
 
     if ($script:commandHistory.Count -gt 0) {
