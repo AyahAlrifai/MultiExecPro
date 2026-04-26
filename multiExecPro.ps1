@@ -275,6 +275,24 @@ function Show-Menu {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
+#  CROSS-PLATFORM COMMAND EXECUTION
+# ═══════════════════════════════════════════════════════════════════════════════
+function Invoke-NativeCommand {
+    param([string]$Command)
+
+    if ($IsWindows -or $env:OS -eq "Windows_NT") {
+        # Windows: use cmd.exe
+        cmd /c $Command
+    } else {
+        # macOS / Linux: use the user's default shell
+        $shell = if ($env:SHELL) { $env:SHELL } else { '/bin/sh' }
+        & $shell -c $Command
+    }
+
+    return $LASTEXITCODE
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
 #  COMMAND EXECUTION WITH PER-PROJECT SUMMARY
 # ═══════════════════════════════════════════════════════════════════════════════
 function Invoke-MultiExec {
@@ -305,7 +323,8 @@ function Invoke-MultiExec {
                 Write-Styled "  > $cmd" -Fg $c.Dim
                 try {
                     $global:LASTEXITCODE = 0
-                    cmd /c $cmd
+                    # ✅ FIX: cross-platform execution (was: cmd /c $cmd)
+                    Invoke-NativeCommand -Command $cmd
                     if ($LASTEXITCODE -ne 0) { $ok = $false }
                 }
                 catch {
@@ -384,7 +403,7 @@ function Start-MultiExec {
             if ($projects.Count -eq 0) {
                 Write-Styled "  No subdirectories found in '$rootPath'." -Fg $c.Error
                 Write-Styled "  Please run multiExecPro from a folder that contains project subfolders." -Fg $c.Dim
-                Write-Styled "  Example:  cd D:\my-projects  then  multiExecPro" -Fg $c.Dim
+                Write-Styled "  Example:  cd ~/my-projects  then  multiExecPro" -Fg $c.Dim
                 Write-Styled ''
                 Write-Styled "  Press any key to exit..." -Fg $c.Dim
                 [void]$Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
